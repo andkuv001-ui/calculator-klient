@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Калькулятор пакетов с печатью</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; }
+        body { background: #f0f4f8; min-height: 100vh; padding: 10px; }
+        .calc { background: #fff; max-width: 480px; width: 100%; margin: 0 auto; padding: 16px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.06); }
+        h1 { font-size: 20px; font-weight: 700; color: #1a202c; margin-bottom: 4px; }
+        .sub { font-size: 12px; color: #718096; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px; margin-bottom: 16px; }
+        .block-title { font-size: 14px; font-weight: 600; color: #2d3748; margin: 16px 0 8px 0; display: flex; align-items: center; gap: 6px; }
+        .type-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .type-btn { display: flex; align-items: center; gap: 8px; padding: 12px; border: 2px solid #e2e8f0; border-radius: 12px; background: #fff; font-size: 14px; cursor: pointer; -webkit-tap-highlight-color: transparent; transition: 0.15s; }
+        .type-btn:active { transform: scale(0.97); }
+        .type-btn.active { border-color: #3182ce; background: #ebf8ff; }
+        .type-dot { width: 18px; height: 18px; border-radius: 50%; border: 2px solid #cbd5e0; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .type-btn.active .type-dot { border-color: #3182ce; }
+        .type-dot-inner { width: 10px; height: 10px; border-radius: 50%; background: #3182ce; display: none; }
+        .type-btn.active .type-dot-inner { display: block; }
+        .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 8px 0; border: 1px solid #e2e8f0; border-radius: 10px; }
+        .table-wrap table { width: 100%; min-width: 300px; border-collapse: collapse; font-size: 13px; }
+        .table-wrap th { padding: 8px 6px; border-bottom: 1px solid #e2e8f0; color: #718096; font-weight: 500; font-size: 11px; text-align: left; white-space: nowrap; }
+        .table-wrap th:not(:first-child) { text-align: right; }
+        .table-wrap td { padding: 8px 6px; border-bottom: 1px solid #edf2f7; white-space: nowrap; }
+        .table-wrap td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nums; }
+        .table-wrap tr:last-child td { border-bottom: none; }
+        .table-wrap tr.active td { background: #ebf8ff; font-weight: 600; }
+        .table-wrap tr.active td:first-child { border-left: 3px solid #3182ce; padding-left: 3px; }
+        .size-select { padding: 12px; border: 1px solid #cbd5e0; border-radius: 10px; font-size: 16px; background: #f7fafc; width: 100%; appearance: auto; }
+        .size-select:focus { border-color: #3182ce; outline: none; background: #fff; }
+        .qty-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .qty-row input { flex: 1; min-width: 80px; padding: 12px; border: 1px solid #cbd5e0; border-radius: 10px; font-size: 16px; background: #f7fafc; }
+        .qty-row input:focus { border-color: #3182ce; outline: none; background: #fff; }
+        .badge { padding: 4px 10px; border-radius: 20px; font-size: 12px; background: #edf2f7; color: #4a5568; white-space: nowrap; }
+        .badge.active { background: #ebf8ff; color: #2b6cb0; }
+        .error { color: #e53e3e; font-size: 12px; min-height: 18px; margin-top: 4px; }
+        .service-item { display: flex; align-items: center; justify-content: space-between; padding: 12px; border: 1px solid #e2e8f0; border-radius: 10px; margin-bottom: 6px; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+        .service-item:active { transform: scale(0.98); }
+        .service-item.checked { border-color: #3182ce; background: #ebf8ff; }
+        .service-item.info { background: #f7fafc; border-color: #edf2f7; cursor: default; }
+        .service-left { display: flex; align-items: center; gap: 10px; }
+        .service-left input[type="checkbox"] { width: 20px; height: 20px; accent-color: #3182ce; }
+        .service-name { font-size: 14px; }
+        .service-name.info { color: #718096; }
+        .service-price { font-size: 13px; color: #718096; white-space: nowrap; }
+        .results { background: #f7fafc; border-radius: 14px; padding: 16px; margin-top: 8px; border: 1px solid #e2e8f0; }
+        .res-row { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; padding: 6px 0; border-bottom: 1px dashed #e2e8f0; font-size: 14px; align-items: center; }
+        .res-row:last-child { border-bottom: none; }
+        .res-row .lbl { color: #4a5568; }
+        .res-row .val { font-weight: 600; color: #2b6cb0; }
+        .res-total { display: grid; grid-template-columns: 1fr auto; gap: 8px; font-size: 16px; font-weight: 700; padding-top: 10px; margin-top: 6px; border-top: 2px solid #cbd5e0; align-items: center; }
+        .res-total .val { color: #2b6cb0; }
+        .btn-copy { width: 100%; padding: 14px; background: #3182ce; color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; margin-top: 14px; cursor: pointer; -webkit-tap-highlight-color: transparent; transition: 0.15s; }
+        .btn-copy:active { transform: scale(0.98); background: #2c5282; }
+        @media (max-width: 380px) { .calc { padding: 12px; } .type-grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+<div class="calc">
+    <h1>📦 Калькулятор пакетов</h1>
+    <div class="sub">Точный расчет стоимости вашего тиража</div>
+
+    <div class="block-title">🛍️ Тип пакета</div>
+    <div class="type-grid" id="typeGroup"></div>
+
+    <div class="block-title">📐 Размер</div>
+    <div id="sizeSelectWrap"></div>
+
+    <div class="block-title">🖨️ Стоимость печати за 1 шт.</div>
+    <div class="table-wrap"><table><thead><tr><th>Группа</th><th>1–199</th><th>200–499</th><th>500–999</th><th>1000–4999</th><th>5000+</th></tr></thead><tbody id="printBody"></tbody></table></div>
+
+    <div class="block-title">🔢 Тираж</div>
+    <div class="qty-row">
+        <input type="number" id="qtyInput" min="50" max="9999" value="150">
+        <span style="font-size:14px;color:#4a5568;">шт.</span>
+        <span class="badge" id="rangeBadge">50–1000</span>
+    </div>
+    <div class="error" id="errorMsg"></div>
+
+    <div class="block-title">✨ Дополнительные услуги</div>
+    <div id="servicesBlock"></div>
+
+    <div class="block-title">💰 Расчет стоимости</div>
+    <div class="results">
+        <div class="res-row"><span class="lbl">Пакет</span><span class="val" id="bagPriceUnit">—</span><span class="val" id="bagPriceTotal">—</span></div>
+        <div class="res-row"><span class="lbl">Печать</span><span class="val" id="printPriceUnit">—</span><span class="val" id="printPriceTotal">—</span></div>
+        <div class="res-row"><span class="lbl">Пакет + печать</span><span class="val" id="bpPriceUnit">—</span><span class="val" id="bpPriceTotal">—</span></div>
+        <div class="res-row"><span class="lbl">Доп. услуги</span><span class="val" id="svcPriceUnit">—</span><span class="val" id="svcPriceTotal">—</span></div>
+        <div class="res-total"><span class="lbl">Итого к оплате</span><span class="val" id="totalPrice">—</span></div>
+    </div>
+    
+    <button id="copyBtn" class="btn-copy" onclick="copyResult()">📋 Скопировать расчет для менеджера</button>
+    <button id="orderBtn" class="btn-copy" style="display:none;background:#38a169;margin-top:8px;" onclick="copyResult()">📦 Заказать</button>
+</div>
+
+<script>
+// ВНИМАНИЕ: Цены в массивах уже финальные (с учетом наценки). Множитель убран для защиты маржи.
+var BAGS = {"vertical":{"10×15":[2.11,2.00,1.89],"15×15":[2.48,2.36,2.24],"15×20":[2.69,2.55,2.42],"20×20":[3.23,3.06,2.90],"20×25":[3.55,3.36,3.19],"20×30":[3.85,3.65,3.46],"25×25":[4.19,3.97,3.75],"25×30":[4.54,4.31,4.08],"25×35":[4.98,4.73,4.47],"30×30":[5.48,5.20,4.91],"30×35":[5.87,5.58,5.28],"30×40":[6.37,6.05,5.72],"35×35":[6.78,6.43,6.08],"35×40":[7.26,6.90,6.53],"35×45":[7.87,7.47,7.06],"40×40":[8.46,8.03,7.60],"40×45":[9.17,8.69,8.22],"40×50":[9.76,9.26,8.76],"40×60":[10.95,10.40,9.84],"45×60":[12.45,11.81,11.18],"45×65":[13.14,12.47,11.80],"50×60":[13.95,13.23,12.53],"50×70":[15.54,14.74,13.95],"70×70":[21.51,20.41,19.32]},"horizontal":{"20×15":[4.46,3.71,2.92],"25×17":[4.54,4.16,4.09],"25×20":[4.60,4.39,4.31],"30×20":[4.87,4.73,4.63]},"black":{"15×20":[3.56,2.97],"20×25":[4.44,3.56],"20×30":[5.93,4.94],"25×30":[6.78,5.60],"25×35":[7.71,6.70],"30×35":[8.64,8.25],"30×40":[11.69,10.38],"35×45":[11.87,10.49],"40×50":[12.47,11.87]},"transparent":{"15×20":[2.11,2.03,1.97],"20×25":[3.01,2.88,2.82],"20×30":[3.44,3.28,3.21],"25×30":[4.01,3.96,3.86],"30×35":[5.35,5.17,5.05],"30×40":[5.70,5.44,5.32],"35×45":[6.98,8.99,8.69],"40×50":[11.27,10.54,9.88]}};
+var PRINT = {"1":["Группа 1 (≤25 см)",59.40,17.67,10.29,8.48,7.82],"2":["Группа 2 (25–40 см)",68.31,18.56,10.95,10.00,8.19],"3":["Группа 3 (40–55 см)",70.35,20.40,12.92,12.02,10.25],"4":["Группа 4 (>55 см)",88.74,22.33,14.99,13.22,11.14]};
+var SVCS = [{"id":"ec","n":"Дополнительный цвет","p":8.51,"t":"u"},{"id":"gs","n":"Золото/серебро","p":2.56,"t":"u"},{"id":"lp","n":"Подготовка макета","p":170,"t":"o"},{"id":"pn","n":"Замешать пантон под фото","p":0,"t":"i"}];
+var TYPES = [{"id":"vertical","n":"Вертикальные"},{"id":"horizontal","n":"Горизонтальные"},{"id":"black","n":"Чёрные"},{"id":"transparent","n":"Прозрачные"}];
+
+var selType = "vertical";
+var selSize = null;
+var selSvcs = {};
+
+function fmt(p) { return p.toFixed(2).replace(".",",") + " ₽"; }
+function getRanges(t) { return t==="black"?[[50,3000],[3000,null]]:[[50,1000],[1000,5000],[5000,null]]; }
+function getBagIdx(t,q) { var r=getRanges(t); for(var i=0;i<r.length;i++){var mx=r[i][0],mn=r[i][1];if(q>=mx&&(mn===null||q<mn))return i}return null; }
+function getPrintGroup(s){var p=s.split("×").map(Number);if(p.length!==2)return 1;var m=Math.max(p[0],p[1]);return m<=25?1:m<=40?2:m<=55?3:4;}
+function getPrintKey(q){return q>=1&&q<=199?1:q>=200&&q<=499?2:q>=500&&q<=999?3:q>=1000&&q<=4999?4:q>=5000&&q<=9999?5:null;}
+
+function pickType(type) { selType = type; selSize = null; renderTypes(); renderSizeSelect(); renderPrint(); calc(); }
+function pickSize(size) { selSize = size; calc(); }
+function toggleSvc(id) { if (selSvcs[id]) delete selSvcs[id]; else selSvcs[id] = true; renderServices(); calc(); }
+
+function renderTypes() {
+    var h = "";
+    for (var i = 0; i < TYPES.length; i++) {
+        var t = TYPES[i]; var a = t.id === selType ? " active" : "";
+        h += '<div class="type-btn' + a + '" onclick="pickType(\'' + t.id + '\')"><div class="type-dot"><div class="type-dot-inner"></div></div>' + t.n + '</div>';
+    }
+    document.getElementById("typeGroup").innerHTML = h;
+}
+
+function renderSizeSelect() {
+    var d = BAGS[selType]; if (!d) return;
+    var keys = Object.keys(d);
+    if (selSize === null || !d[selSize]) selSize = keys[0];
+    var h = '<select class="size-select" onchange="pickSize(this.value)">';
+    for (var i = 0; i < keys.length; i++) {
+        var sz = keys[i]; var pr = d[sz];
+        h += '<option value="' + sz + '"' + (sz === selSize ? ' selected' : '') + '>' + sz + ' — от ' + fmt(pr[0]) + '</option>';
+    }
+    h += '</select>';
+    document.getElementById("sizeSelectWrap").innerHTML = h;
+}
+
+function renderPrint() {
+    var d = BAGS[selType]; if (!d || !selSize || !d[selSize]) return;
+    var g = getPrintGroup(selSize); var h = "";
+    for (var i = 1; i <= 4; i++) {
+        var p = PRINT[i]; var a = i == g ? ' class="active"' : '';
+        h += '<tr' + a + '><td>' + p[0] + '</td><td>' + fmt(p[1]) + '</td><td>' + fmt(p[2]) + '</td><td>' + fmt(p[3]) + '</td><td>' + fmt(p[4]) + '</td><td>' + fmt(p[5]) + '</td></tr>';
+    }
+    document.getElementById("printBody").innerHTML = h;
+}
+
+function renderServices() {
+    var h = "";
+    for (var i = 0; i < SVCS.length; i++) {
+        var s = SVCS[i]; var c = selSvcs[s.id]; var info = s.t === "i";
+        var cls = info ? "service-item info" : c ? "service-item checked" : "service-item";
+        var pt = s.p === 0 ? "Бесплатно" : s.t === "u" ? fmt(s.p) + "/шт." : fmt(s.p);
+        h += '<div class="' + cls + '"' + (info ? '' : ' onclick="toggleSvc(\'' + s.id + '\')"') + '><div class="service-left">';
+        if (info) h += '<span style="color:#a0aec0;font-size:16px;">ℹ️</span>';
+        else h += '<input type="checkbox" ' + (c ? 'checked' : '') + ' onclick="event.stopPropagation();toggleSvc(\'' + s.id + '\')">';
+        h += '<span class="service-name' + (info ? ' info' : '') + '">' + s.n + '</span></div><span class="service-price">' + pt + '</span></div>';
+    }
+    document.getElementById("servicesBlock").innerHTML = h;
+}
+
+function calc() {
+    var d = BAGS[selType];
+    var q = parseInt(document.getElementById("qtyInput").value, 10);
+    var errEl = document.getElementById("errorMsg");
+    var badgeEl = document.getElementById("rangeBadge");
+    errEl.textContent = "";
+    if (!d || !selSize || !d[selSize]) { clearRes(); return; }
+    if (isNaN(q) || q < 50) { errEl.textContent = "Введите число от 50 до 9999"; clearRes(); return; }
+    if (q > 9999) { errEl.textContent = "Тираж не должен превышать 9999 шт."; clearRes(); return; }
+    var bi = getBagIdx(selType, q);
+    if (bi === null) { errEl.textContent = "Тираж должен быть от 50 шт."; clearRes(); return; }
+    var bc = d[selSize][bi];
+    if (bc === undefined) { errEl.textContent = "Нет цены"; clearRes(); return; }
+    var pg = getPrintGroup(selSize); var pk = getPrintKey(q);
+    if (!pk || !PRINT[pg] || PRINT[pg][pk] === undefined) { errEl.textContent = "Тираж вне диапазона печати"; clearRes(); return; }
+    var pc = PRINT[pg][pk]; 
+    var us = 0, os = 0;
+    if (selSvcs["ec"]) us += 8.51;
+    if (selSvcs["gs"]) us += 2.56;
+    if (selSvcs["lp"]) os += 170;
+    
+    var tp = (bc + pc + us) * q + os;
+    var bpPriceUnit = bc + pc;
+    var bpPriceTotal = bpPriceUnit * q + os;
+
+    document.getElementById("bagPriceUnit").textContent = fmt(bc);
+    document.getElementById("bagPriceTotal").textContent = fmt(bc * q);
+    document.getElementById("printPriceUnit").textContent = fmt(pc);
+    document.getElementById("printPriceTotal").textContent = fmt(pc * q);
+    document.getElementById("bpPriceUnit").textContent = fmt(bpPriceUnit);
+    document.getElementById("bpPriceTotal").textContent = fmt(bpPriceTotal);
+    document.getElementById("svcPriceUnit").textContent = fmt(us);
+    document.getElementById("svcPriceTotal").textContent = fmt(us * q + os);
+    document.getElementById("totalPrice").textContent = fmt(tp);
+
+    var r = getRanges(selType); var lb = r[bi];
+    badgeEl.textContent = lb[0] + "\u2013" + (lb[1] || "\u221E");
+    badgeEl.className = "badge active";
+    renderPrint();
+}
+
+function clearRes() {
+    ["bagPriceUnit","bagPriceTotal","printPriceUnit","printPriceTotal","svcPriceUnit","svcPriceTotal","bpPriceUnit","bpPriceTotal","totalPrice"].forEach(function(id){
+        document.getElementById(id).textContent = "\u2014";
+    });
+    document.getElementById("rangeBadge").textContent = "\u2014";
+    document.getElementById("rangeBadge").className = "badge";
+}
+
+function copyResult() {
+    var q = parseInt(document.getElementById("qtyInput").value, 10);
+    var tName = TYPES.find(t => t.id === selType).n;
+    var svcsText = [];
+    for (var id in selSvcs) {
+        var s = SVCS.find(sv => sv.id === id);
+        if (s) svcsText.push(s.n);
+    }
+    var text = `Заявка на расчет пакетов:\n` +
+               `Тип: ${tName}\n` +
+               `Размер: ${selSize}\n` +
+               `Тираж: ${q} шт.\n` +
+               (svcsText.length ? `Доп. услуги: ${svcsText.join(", ")}\n` : "") +
+               `Итого: ${document.getElementById("totalPrice").textContent}`;
+    
+    if (typeof Telegram !== "undefined" && Telegram.WebApp && Telegram.WebApp.initData) {
+        Telegram.WebApp.sendData(text);
+    } else {
+        navigator.clipboard.writeText(text).then(() => {
+            var btn = document.getElementById("copyBtn");
+            btn.textContent = "✓ Скопировано! Отправьте нам";
+            setTimeout(() => { btn.textContent = "📋 Скопировать расчет для менеджера"; }, 2500);
+        });
+    }
+}
+
+document.getElementById("qtyInput").addEventListener("input", calc);
+renderTypes(); renderSizeSelect(); renderPrint(); renderServices(); calc();
+
+if (typeof Telegram !== "undefined" && Telegram.WebApp) {
+    Telegram.WebApp.ready();
+    Telegram.WebApp.expand();
+    document.getElementById("copyBtn").style.display = "none";
+    document.getElementById("orderBtn").style.display = "";
+}
+</script>
+</body>
+</html>
