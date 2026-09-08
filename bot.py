@@ -7,61 +7,78 @@ from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, fil
 load_dotenv()
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-WEBAPP_URL = os.getenv("WEBAPP_URL", "https://andkuv001-ui.github.io/calculator-klient/")
+WEB_APP_URL = "https://andkuv001-ui.github.io/calculator-klient/"
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    level=logging.INFO,
+)
 logger = logging.getLogger(__name__)
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     keyboard = [[KeyboardButton(
         text="📦 Рассчитать пакеты",
-        web_app=WebAppInfo(url=WEBAPP_URL)
+        web_app=WebAppInfo(url=WEB_APP_URL),
     )]]
-    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+    reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=False, resize_keyboard=True)
+
     await update.message.reply_text(
-        "👋 Добро пожаловать!\n\n"
-        "Нажмите кнопку ниже, чтобы открыть калькулятор и рассчитать стоимость пакетов.",
-        reply_markup=reply_markup
+        "Добро пожаловать! 🎉\n\n"
+        "Нажмите кнопку ниже, чтобы открыть калькулятор пакетов.\n"
+        "Вы сможете рассчитать стоимость и сразу отправить заявку.",
+        reply_markup=reply_markup,
     )
 
 
-async def calc_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def calc(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     keyboard = [[KeyboardButton(
         text="📦 Рассчитать пакеты",
-        web_app=WebAppInfo(url=WEBAPP_URL)
+        web_app=WebAppInfo(url=WEB_APP_URL),
     )]]
-    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+    reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=False, resize_keyboard=True)
+
     await update.message.reply_text(
-        "Откройте калькулятор:",
-        reply_markup=reply_markup
+        "Откройте калькулятор для расчёта стоимости пакетов:",
+        reply_markup=reply_markup,
     )
 
 
-async def web_app_data(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def handle_web_app_data(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     data = update.effective_message.web_app_data.data
     user = update.effective_user
-    logger.info("Заявка от %s (ID: %s): %s", user.first_name, user.id, data)
+
+    logger.info("WebApp data from %s (id=%s): %s", user.username, user.id, data)
+
+    message_text = (
+        f"📨 Новая заявка от @{user.username} (ID: {user.id}):\n\n"
+        f"{data}"
+    )
 
     await update.message.reply_text(
-        "✅ Ваша заявка принята!\n\n"
-        f"📋 Данные:\n{data}\n\n"
-        "Наш менеджер свяжется с вами в ближайшее время."
+        "Спасибо! Ваша заявка отправлена. ✅\n"
+        "Менеджер свяжется с вами в ближайшее время."
     )
+
+    try:
+        await context.bot.send_message(chat_id=update.effective_chat.id, text=message_text)
+    except Exception as e:
+        logger.error("Failed to forward data: %s", e)
 
 
 def main() -> None:
     if not BOT_TOKEN:
-        raise RuntimeError("BOT_TOKEN не задан. Создайте файл .env с токеном от BotFather.")
+        logger.error("BOT_TOKEN not set! Create .env file with BOT_TOKEN=<your_token>")
+        return
 
     app = ApplicationBuilder().token(BOT_TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("calc", calc_command))
-    app.add_handler(MessageHandler(filters.StatusUpdate.WEB_APP_DATA, web_app_data))
+    app.add_handler(CommandHandler("calc", calc))
+    app.add_handler(MessageHandler(filters.StatusUpdate.WEB_APP_DATA, handle_web_app_data))
 
-    logger.info("Бот запущен")
-    app.run_polling()
+    logger.info("Bot started. Web App URL: %s", WEB_APP_URL)
+    app.run_polling(allowed_updates=Update.ALL_TYPES)
 
 
 if __name__ == "__main__":

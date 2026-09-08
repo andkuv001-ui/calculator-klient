@@ -2,15 +2,22 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Калькулятор пакетов с печатью</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
+        :root {
+            --tg-bg: var(--tg-theme-bg-color, #f0f4f8);
+            --tg-text: var(--tg-theme-text-color, #1a202c);
+            --tg-hint: var(--tg-theme-hint-color, #718096);
+            --tg-btn: var(--tg-theme-button-color, #3182ce);
+            --tg-btn-text: var(--tg-theme-button-text-color, #ffffff);
+        }
         * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; }
-        body { background: #f0f4f8; min-height: 100vh; padding: 10px; }
+        body { background: var(--tg-bg); min-height: 100vh; padding: 10px; }
         .calc { background: #fff; max-width: 480px; width: 100%; margin: 0 auto; padding: 16px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.06); }
-        h1 { font-size: 20px; font-weight: 700; color: #1a202c; margin-bottom: 4px; }
-        .sub { font-size: 12px; color: #718096; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px; margin-bottom: 16px; }
+        h1 { font-size: 20px; font-weight: 700; color: var(--tg-text); margin-bottom: 4px; }
+        .sub { font-size: 12px; color: var(--tg-hint); border-bottom: 1px solid #e2e8f0; padding-bottom: 10px; margin-bottom: 16px; }
         .block-title { font-size: 14px; font-weight: 600; color: #2d3748; margin: 16px 0 8px 0; display: flex; align-items: center; gap: 6px; }
         .type-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
         .type-btn { display: flex; align-items: center; gap: 8px; padding: 12px; border: 2px solid #e2e8f0; border-radius: 12px; background: #fff; font-size: 14px; cursor: pointer; -webkit-tap-highlight-color: transparent; transition: 0.15s; }
@@ -53,8 +60,10 @@
         .res-row .val { font-weight: 600; color: #2b6cb0; }
         .res-total { display: grid; grid-template-columns: 1fr auto; gap: 8px; font-size: 16px; font-weight: 700; padding-top: 10px; margin-top: 6px; border-top: 2px solid #cbd5e0; align-items: center; }
         .res-total .val { color: #2b6cb0; }
-        .btn-copy { width: 100%; padding: 14px; background: #3182ce; color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; margin-top: 14px; cursor: pointer; -webkit-tap-highlight-color: transparent; transition: 0.15s; }
-        .btn-copy:active { transform: scale(0.98); background: #2c5282; }
+        .btn-send { width: 100%; padding: 14px; background: var(--tg-btn); color: var(--tg-btn-text); border: none; border-radius: 10px; font-size: 15px; font-weight: 600; margin-top: 14px; cursor: pointer; -webkit-tap-highlight-color: transparent; transition: 0.15s; }
+        .btn-send:active { transform: scale(0.98); opacity: 0.85; }
+        .btn-copy { width: 100%; padding: 14px; background: #718096; color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; margin-top: 8px; cursor: pointer; -webkit-tap-highlight-color: transparent; transition: 0.15s; }
+        .btn-copy:active { transform: scale(0.98); opacity: 0.85; }
         @media (max-width: 380px) { .calc { padding: 12px; } .type-grid { grid-template-columns: 1fr; } }
     </style>
 </head>
@@ -91,13 +100,12 @@
         <div class="res-row"><span class="lbl">Доп. услуги</span><span class="val" id="svcPriceUnit">—</span><span class="val" id="svcPriceTotal">—</span></div>
         <div class="res-total"><span class="lbl">Итого к оплате</span><span class="val" id="totalPrice">—</span></div>
     </div>
-    
-    <button id="copyBtn" class="btn-copy" onclick="copyResult()">📋 Скопировать расчет для менеджера</button>
-    <button id="orderBtn" class="btn-copy" style="display:none;background:#38a169;margin-top:8px;" onclick="copyResult()">📦 Заказать</button>
+
+    <button id="sendBtn" class="btn-send" onclick="sendOrder()">📋 Отправить заявку менеджеру</button>
+    <button id="copyBtn" class="btn-copy" onclick="copyResult()">📄 Скопировать расчёт в буфер</button>
 </div>
 
 <script>
-// ВНИМАНИЕ: Цены в массивах уже финальные (с учетом наценки). Множитель убран для защиты маржи.
 var BAGS = {"vertical":{"10×15":[2.11,2.00,1.89],"15×15":[2.48,2.36,2.24],"15×20":[2.69,2.55,2.42],"20×20":[3.23,3.06,2.90],"20×25":[3.55,3.36,3.19],"20×30":[3.85,3.65,3.46],"25×25":[4.19,3.97,3.75],"25×30":[4.54,4.31,4.08],"25×35":[4.98,4.73,4.47],"30×30":[5.48,5.20,4.91],"30×35":[5.87,5.58,5.28],"30×40":[6.37,6.05,5.72],"35×35":[6.78,6.43,6.08],"35×40":[7.26,6.90,6.53],"35×45":[7.87,7.47,7.06],"40×40":[8.46,8.03,7.60],"40×45":[9.17,8.69,8.22],"40×50":[9.76,9.26,8.76],"40×60":[10.95,10.40,9.84],"45×60":[12.45,11.81,11.18],"45×65":[13.14,12.47,11.80],"50×60":[13.95,13.23,12.53],"50×70":[15.54,14.74,13.95],"70×70":[21.51,20.41,19.32]},"horizontal":{"20×15":[4.46,3.71,2.92],"25×17":[4.54,4.16,4.09],"25×20":[4.60,4.39,4.31],"30×20":[4.87,4.73,4.63]},"black":{"15×20":[3.56,2.97],"20×25":[4.44,3.56],"20×30":[5.93,4.94],"25×30":[6.78,5.60],"25×35":[7.71,6.70],"30×35":[8.64,8.25],"30×40":[11.69,10.38],"35×45":[11.87,10.49],"40×50":[12.47,11.87]},"transparent":{"15×20":[2.11,2.03,1.97],"20×25":[3.01,2.88,2.82],"20×30":[3.44,3.28,3.21],"25×30":[4.01,3.96,3.86],"30×35":[5.35,5.17,5.05],"30×40":[5.70,5.44,5.32],"35×45":[6.98,8.99,8.69],"40×50":[11.27,10.54,9.88]}};
 var PRINT = {"1":["Группа 1 (≤25 см)",59.40,17.67,10.29,8.48,7.82],"2":["Группа 2 (25–40 см)",68.31,18.56,10.95,10.00,8.19],"3":["Группа 3 (40–55 см)",70.35,20.40,12.92,12.02,10.25],"4":["Группа 4 (>55 см)",88.74,22.33,14.99,13.22,11.14]};
 var SVCS = [{"id":"ec","n":"Дополнительный цвет","p":8.51,"t":"u"},{"id":"gs","n":"Золото/серебро","p":2.56,"t":"u"},{"id":"lp","n":"Подготовка макета","p":170,"t":"o"},{"id":"pn","n":"Замешать пантон под фото","p":0,"t":"i"}];
@@ -106,6 +114,12 @@ var TYPES = [{"id":"vertical","n":"Вертикальные"},{"id":"horizontal"
 var selType = "vertical";
 var selSize = null;
 var selSvcs = {};
+
+var tgApp = window.Telegram && window.Telegram.WebApp;
+if (tgApp) {
+    tgApp.ready();
+    tgApp.expand();
+}
 
 function fmt(p) { return p.toFixed(2).replace(".",",") + " ₽"; }
 function getRanges(t) { return t==="black"?[[50,3000],[3000,null]]:[[50,1000],[1000,5000],[5000,null]]; }
@@ -163,6 +177,24 @@ function renderServices() {
     document.getElementById("servicesBlock").innerHTML = h;
 }
 
+function buildResultText() {
+    var q = parseInt(document.getElementById("qtyInput").value, 10);
+    var tName = TYPES.find(t => t.id === selType).n;
+    var svcsText = [];
+    for (var id in selSvcs) {
+        var s = SVCS.find(sv => sv.id === id);
+        if (s) svcsText.push(s.n);
+    }
+    var totalText = document.getElementById("totalPrice").textContent;
+    if (totalText === "—") return null;
+    return "📦 Заявка на расчёт пакетов:\n" +
+           "Тип: " + tName + "\n" +
+           "Размер: " + selSize + "\n" +
+           "Тираж: " + q + " шт.\n" +
+           (svcsText.length ? "Доп. услуги: " + svcsText.join(", ") + "\n" : "") +
+           "Итого: " + totalText;
+}
+
 function calc() {
     var d = BAGS[selType];
     var q = parseInt(document.getElementById("qtyInput").value, 10);
@@ -212,41 +244,45 @@ function clearRes() {
     document.getElementById("rangeBadge").className = "badge";
 }
 
-function copyResult() {
-    var q = parseInt(document.getElementById("qtyInput").value, 10);
-    var tName = TYPES.find(t => t.id === selType).n;
-    var svcsText = [];
-    for (var id in selSvcs) {
-        var s = SVCS.find(sv => sv.id === id);
-        if (s) svcsText.push(s.n);
-    }
-    var text = `Заявка на расчет пакетов:\n` +
-               `Тип: ${tName}\n` +
-               `Размер: ${selSize}\n` +
-               `Тираж: ${q} шт.\n` +
-               (svcsText.length ? `Доп. услуги: ${svcsText.join(", ")}\n` : "") +
-               `Итого: ${document.getElementById("totalPrice").textContent}`;
-    
-    if (typeof Telegram !== "undefined" && Telegram.WebApp && Telegram.WebApp.initData) {
-        Telegram.WebApp.sendData(text);
+function sendOrder() {
+    var text = buildResultText();
+    if (!text) return;
+    if (tgApp && tgApp.sendData) {
+        tgApp.sendData(text);
     } else {
-        navigator.clipboard.writeText(text).then(() => {
-            var btn = document.getElementById("copyBtn");
-            btn.textContent = "✓ Скопировано! Отправьте нам";
-            setTimeout(() => { btn.textContent = "📋 Скопировать расчет для менеджера"; }, 2500);
-        });
+        copyToClipboard(text);
+        var btn = document.getElementById("sendBtn");
+        btn.textContent = "✓ Скопировано!";
+        setTimeout(function() { btn.textContent = "📋 Отправить заявку менеджеру"; }, 2500);
+    }
+}
+
+function copyResult() {
+    var text = buildResultText();
+    if (!text) return;
+    copyToClipboard(text);
+    var btn = document.getElementById("copyBtn");
+    btn.textContent = "✓ Скопировано в буфер!";
+    setTimeout(function() { btn.textContent = "📄 Скопировать расчёт в буфер"; }, 2500);
+}
+
+function copyToClipboard(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text);
+    } else {
+        var ta = document.createElement("textarea");
+        ta.value = text;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
     }
 }
 
 document.getElementById("qtyInput").addEventListener("input", calc);
 renderTypes(); renderSizeSelect(); renderPrint(); renderServices(); calc();
-
-if (typeof Telegram !== "undefined" && Telegram.WebApp) {
-    Telegram.WebApp.ready();
-    Telegram.WebApp.expand();
-    document.getElementById("copyBtn").style.display = "none";
-    document.getElementById("orderBtn").style.display = "";
-}
 </script>
 </body>
 </html>
