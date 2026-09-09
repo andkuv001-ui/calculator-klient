@@ -60,9 +60,7 @@
         .res-row .val { font-weight: 600; color: #2b6cb0; }
         .res-total { display: grid; grid-template-columns: 1fr auto; gap: 8px; font-size: 16px; font-weight: 700; padding-top: 10px; margin-top: 6px; border-top: 2px solid #cbd5e0; align-items: center; }
         .res-total .val { color: #2b6cb0; }
-        .btn-send { width: 100%; padding: 14px; background: var(--tg-btn); color: var(--tg-btn-text); border: none; border-radius: 10px; font-size: 15px; font-weight: 600; margin-top: 14px; cursor: pointer; -webkit-tap-highlight-color: transparent; transition: 0.15s; }
-        .btn-send:active { transform: scale(0.98); opacity: 0.85; }
-        .btn-copy { width: 100%; padding: 14px; background: #718096; color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; margin-top: 8px; cursor: pointer; -webkit-tap-highlight-color: transparent; transition: 0.15s; }
+        .btn-copy { width: 100%; padding: 14px; background: #718096; color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; margin-top: 14px; cursor: pointer; -webkit-tap-highlight-color: transparent; transition: 0.15s; }
         .btn-copy:active { transform: scale(0.98); opacity: 0.85; }
         @media (max-width: 380px) { .calc { padding: 12px; } .type-grid { grid-template-columns: 1fr; } }
     </style>
@@ -101,7 +99,6 @@
         <div class="res-total"><span class="lbl">Итого к оплате</span><span class="val" id="totalPrice">—</span></div>
     </div>
 
-    <button id="sendBtn" class="btn-send" onclick="sendOrder()">📋 Отправить заявку менеджеру</button>
     <button id="copyBtn" class="btn-copy" onclick="copyResult()">📄 Скопировать расчёт в буфер</button>
 </div>
 
@@ -242,19 +239,6 @@ function clearRes() {
     });
     document.getElementById("rangeBadge").textContent = "\u2014";
     document.getElementById("rangeBadge").className = "badge";
-}
-
-function sendOrder() {
-    var text = buildResultText();
-    if (!text) return;
-    if (tgApp && tgApp.sendData) {
-        tgApp.sendData(text);
-    } else {
-        copyToClipboard(text);
-        var btn = document.getElementById("sendBtn");
-        btn.textContent = "✓ Скопировано!";
-        setTimeout(function() { btn.textContent = "📋 Отправить заявку менеджеру"; }, 2500);
-    }
 }
 
 function copyResult() {
