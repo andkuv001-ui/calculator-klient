@@ -7,7 +7,7 @@ from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, fil
 load_dotenv()
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-WEB_APP_URL = "https://andkuv001-ui.github.io/calculator-klient/"
+WEBAPP_URL = os.getenv("WEBAPP_URL", "https://andkuv001-ui.github.io/calculator-klient/")
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -23,7 +23,7 @@ def get_inline_keyboard():
     return InlineKeyboardMarkup([
         [InlineKeyboardButton(
             text=CALC_BUTTON_TEXT,
-            web_app=WebAppInfo(url=WEB_APP_URL),
+            web_app=WebAppInfo(url=WEBAPP_URL),
         )]
     ])
 
@@ -32,7 +32,7 @@ def get_channel_keyboard():
     return InlineKeyboardMarkup([
         [InlineKeyboardButton(
             text=CALC_BUTTON_TEXT,
-            url=WEB_APP_URL,
+            url=WEBAPP_URL,
         )]
     ])
 
@@ -40,7 +40,7 @@ def get_channel_keyboard():
 def get_reply_keyboard():
     keyboard = [[KeyboardButton(
         text=CALC_BUTTON_TEXT,
-        web_app=WebAppInfo(url=WEB_APP_URL),
+        web_app=WebAppInfo(url=WEBAPP_URL),
     )]]
     return ReplyKeyboardMarkup(keyboard, one_time_keyboard=False, resize_keyboard=True)
 
@@ -173,7 +173,7 @@ def main() -> None:
     app.add_handler(CommandHandler("post", post_calculator, filters=filters.ChatType.GROUPS | filters.ChatType.CHANNEL))
     app.add_handler(MessageHandler(filters.StatusUpdate.WEB_APP_DATA, handle_web_app_data))
 
-    logger.info("Bot started. Web App URL: %s", WEB_APP_URL)
+    logger.info("Bot started. Web App URL: %s", WEBAPP_URL)
     app.run_polling(allowed_updates=Update.ALL_TYPES)
 
 
