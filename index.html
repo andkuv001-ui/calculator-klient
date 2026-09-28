@@ -112,11 +112,16 @@ var selType = "vertical";
 var selSize = null;
 var selSvcs = {};
 
-var tgApp = window.Telegram && window.Telegram.WebApp;
-if (tgApp) {
-    tgApp.ready();
-    tgApp.expand();
+var tgRaw = window.Telegram && window.Telegram.WebApp;
+var tgApp = !!(tgRaw && (tgRaw.initData || (tgRaw.platform && tgRaw.platform !== "unknown")));
+if (tgRaw) {
+    tgRaw.ready();
+    tgRaw.expand();
 }
+
+var BTN_COPY = tgApp ? "📄 Скопировать расчёт в буфер" : "📄 Скопировать заявку и отправить менеджеру";
+var BTN_DONE = tgApp ? "✓ Скопировано в буфер!" : "✓ Скопировано! Вставьте в чат с менеджером";
+document.getElementById("copyBtn").textContent = BTN_COPY;
 
 function fmt(p) { return p.toFixed(2).replace(".",",") + " ₽"; }
 function getRanges(t) { return t==="black"?[[50,3000],[3000,null]]:[[50,1000],[1000,5000],[5000,null]]; }
@@ -246,8 +251,8 @@ function copyResult() {
     if (!text) return;
     copyToClipboard(text);
     var btn = document.getElementById("copyBtn");
-    btn.textContent = "✓ Скопировано в буфер!";
-    setTimeout(function() { btn.textContent = "📄 Скопировать расчёт в буфер"; }, 2500);
+    btn.textContent = BTN_DONE;
+    setTimeout(function() { btn.textContent = BTN_COPY; }, 2500);
 }
 
 function copyToClipboard(text) {

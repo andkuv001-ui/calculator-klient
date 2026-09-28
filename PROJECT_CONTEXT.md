@@ -73,16 +73,17 @@ MessageHandler(filters.StatusUpdate.WEB_APP_DATA, handle_web_app_data)
 
 ### Telegram Web App интеграция
 ```javascript
-var tgApp = window.Telegram && window.Telegram.WebApp;
-if (tgApp) { tgApp.ready(); tgApp.expand(); }
-// sendData() — отправка данных боту (в личке/группе)
+var tgRaw = window.Telegram && window.Telegram.WebApp;
+var tgApp = !!(tgRaw && (tgRaw.initData || (tgRaw.platform && tgRaw.platform !== "unknown")));
+if (tgRaw) { tgRaw.ready(); tgRaw.expand(); }
+// BTN_COPY / BTN_DONE — текст кнопки зависит от tgApp (Telegram vs браузер/ВК)
 // Clipboard fallback — копирование в буфер (в канале/standalone)
 ```
 
+> `telegram-web-app.js` создаёт `window.Telegram.WebApp` и в обычном браузере (platform = "unknown", initData пусто), поэтому используется проверка `initData || platform !== "unknown"`.
+
 ### Функция copyResult()
-Генерирует текст заявки и:
-1. Пытается `tgApp.sendData(text)` (Telegram Web App)
-2. Fallback на `navigator.clipboard.writeText(text)`
+Генерирует текст заявки и копирует в буфер (`navigator.clipboard.writeText`, fallback — временный `textarea` + `execCommand("copy")`), после чего меняет текст кнопки на подсказку и возвращает его через 2.5 сек.
 
 ## Известные особенности
 
@@ -90,6 +91,24 @@ if (tgApp) { tgApp.ready(); tgApp.expand(); }
 2. **GitHub Pages**: Калькулятор хостится на GitHub Pages — `https://andkuv001-ui.github.io/calculator-klient/`
 3. **Бот не работает 24/7**: Запускается на компьютере пользователя. Для постоянной работы нужен VPS.
 4. **Каналы vs Группы**: В каналах — URL-кнопка (калькулятор в браузере). В группах — Web App кнопка (калькулятор в Telegram).
+
+## ВКонтакте
+
+Калькулятор работает без Telegram: при отсутствии `tgApp` кнопка показывает «Скопировать заявку и отправить менеджеру», копирование идёт через `navigator.clipboard` (с fallback на `execCommand`), клиент вставляет заявку в чат с менеджером вручную.
+
+| Параметр | Значение |
+|----------|----------|
+| Ссылка для ВК | `https://andkuv001-ui.github.io/calculator-klient/` |
+| Уровень интеграции | Только ссылка (без виджета/приложения ВК) |
+| Отправка заявки | Копирование в буфер + ручная отправка менеджеру |
+
+Где разместить ссылку (вне кода):
+- Описание сообщества
+- Закреплённый пост
+- Меню сообщества (ссылка)
+- Сообщения клиентам
+
+Проверка: открыть URL во внешнем браузере или внутреннем браузере ВК — кнопка должна иметь текст про отправку менеджеру, после клика появляется подсказка «✓ Скопировано! Вставьте в чат с менеджером».
 
 ## Git история
 
