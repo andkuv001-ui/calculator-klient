@@ -77,13 +77,13 @@
     <div id="sizeSelectWrap"></div>
 
     <div class="block-title">🖨️ Стоимость печати за 1 шт.</div>
-    <div class="table-wrap"><table><thead><tr><th>Группа</th><th>1–199</th><th>200–499</th><th>500–999</th><th>1000–4999</th><th>5000+</th></tr></thead><tbody id="printBody"></tbody></table></div>
+    <div class="table-wrap"><table><thead><tr><th>Группа</th><th>200–499</th><th>500–999</th><th>1000–4999</th><th>5000+</th></tr></thead><tbody id="printBody"></tbody></table></div>
 
     <div class="block-title">🔢 Тираж</div>
     <div class="qty-row">
-        <input type="number" id="qtyInput" min="50" max="9999" value="150">
+        <input type="number" id="qtyInput" min="200" max="9999" value="200">
         <span style="font-size:14px;color:#4a5568;">шт.</span>
-        <span class="badge" id="rangeBadge">50–1000</span>
+        <span class="badge" id="rangeBadge">200–1000</span>
     </div>
     <div class="error" id="errorMsg"></div>
 
@@ -104,13 +104,14 @@
 
 <script>
 var BAGS = {"vertical":{"10×15":[2.11,2.00,1.89],"15×15":[2.48,2.36,2.24],"15×20":[2.69,2.55,2.42],"20×20":[3.23,3.06,2.90],"20×25":[3.55,3.36,3.19],"20×30":[3.85,3.65,3.46],"25×25":[4.19,3.97,3.75],"25×30":[4.54,4.31,4.08],"25×35":[4.98,4.73,4.47],"30×30":[5.48,5.20,4.91],"30×35":[5.87,5.58,5.28],"30×40":[6.37,6.05,5.72],"35×35":[6.78,6.43,6.08],"35×40":[7.26,6.90,6.53],"35×45":[7.87,7.47,7.06],"40×40":[8.46,8.03,7.60],"40×45":[9.17,8.69,8.22],"40×50":[9.76,9.26,8.76],"40×60":[10.95,10.40,9.84],"45×60":[12.45,11.81,11.18],"45×65":[13.14,12.47,11.80],"50×60":[13.95,13.23,12.53],"50×70":[15.54,14.74,13.95],"70×70":[21.51,20.41,19.32]},"horizontal":{"20×15":[4.46,3.71,2.92],"25×17":[4.54,4.16,4.09],"25×20":[4.60,4.39,4.31],"30×20":[4.87,4.73,4.63]},"black":{"15×20":[3.56,2.97],"20×25":[4.44,3.56],"20×30":[5.93,4.94],"25×30":[6.78,5.60],"25×35":[7.71,6.70],"30×35":[8.64,8.25],"30×40":[11.69,10.38],"35×45":[11.87,10.49],"40×50":[12.47,11.87]},"transparent":{"15×20":[2.11,2.03,1.97],"20×25":[3.01,2.88,2.82],"20×30":[3.44,3.28,3.21],"25×30":[4.01,3.96,3.86],"30×35":[5.35,5.17,5.05],"30×40":[5.70,5.44,5.32],"35×45":[6.98,8.99,8.69],"40×50":[11.27,10.54,9.88]}};
-var PRINT = {"1":["Группа 1 (≤25 см)",59.40,17.67,10.29,8.48,7.82],"2":["Группа 2 (25–40 см)",68.31,18.56,10.95,10.00,8.19],"3":["Группа 3 (40–55 см)",70.35,20.40,12.92,12.02,10.25],"4":["Группа 4 (>55 см)",88.74,22.33,14.99,13.22,11.14]};
+var PRINT = {"1":["Группа 1 (≤25 см)",17.67,10.29,8.48,7.82],"2":["Группа 2 (25–40 см)",18.56,10.95,10.00,8.19],"3":["Группа 3 (40–55 см)",20.40,12.92,12.02,10.25],"4":["Группа 4 (>55 см)",22.33,14.99,13.22,11.14]};
 var SVCS = [{"id":"ec","n":"Дополнительный цвет","p":8.51,"t":"u"},{"id":"gs","n":"Золото/серебро","p":2.56,"t":"u"},{"id":"lp","n":"Подготовка макета","p":170,"t":"o"},{"id":"pn","n":"Замешать пантон под фото","p":0,"t":"i"}];
 var TYPES = [{"id":"vertical","n":"Вертикальные"},{"id":"horizontal","n":"Горизонтальные"},{"id":"black","n":"Чёрные"},{"id":"transparent","n":"Прозрачные"}];
 
 var selType = "vertical";
 var selSize = null;
 var selSvcs = {};
+var lastTotal = null;
 
 var tgRaw = window.Telegram && window.Telegram.WebApp;
 var tgApp = !!(tgRaw && (tgRaw.initData || (tgRaw.platform && tgRaw.platform !== "unknown")));
@@ -124,10 +125,10 @@ var BTN_DONE = tgApp ? "✓ Скопировано в буфер!" : "✓ Ско
 document.getElementById("copyBtn").textContent = BTN_COPY;
 
 function fmt(p) { return p.toFixed(2).replace(".",",") + " ₽"; }
-function getRanges(t) { return t==="black"?[[50,3000],[3000,null]]:[[50,1000],[1000,5000],[5000,null]]; }
+function getRanges(t) { return t==="black"?[[200,3000],[3000,null]]:[[200,1000],[1000,5000],[5000,null]]; }
 function getBagIdx(t,q) { var r=getRanges(t); for(var i=0;i<r.length;i++){var mx=r[i][0],mn=r[i][1];if(q>=mx&&(mn===null||q<mn))return i}return null; }
 function getPrintGroup(s){var p=s.split("×").map(Number);if(p.length!==2)return 1;var m=Math.max(p[0],p[1]);return m<=25?1:m<=40?2:m<=55?3:4;}
-function getPrintKey(q){return q>=1&&q<=199?1:q>=200&&q<=499?2:q>=500&&q<=999?3:q>=1000&&q<=4999?4:q>=5000&&q<=9999?5:null;}
+function getPrintKey(q){return q>=200&&q<=499?1:q>=500&&q<=999?2:q>=1000&&q<=4999?3:q>=5000&&q<=9999?4:null;}
 
 function pickType(type) { selType = type; selSize = null; renderTypes(); renderSizeSelect(); renderPrint(); calc(); }
 function pickSize(size) { selSize = size; calc(); }
@@ -160,7 +161,7 @@ function renderPrint() {
     var g = getPrintGroup(selSize); var h = "";
     for (var i = 1; i <= 4; i++) {
         var p = PRINT[i]; var a = i == g ? ' class="active"' : '';
-        h += '<tr' + a + '><td>' + p[0] + '</td><td>' + fmt(p[1]) + '</td><td>' + fmt(p[2]) + '</td><td>' + fmt(p[3]) + '</td><td>' + fmt(p[4]) + '</td><td>' + fmt(p[5]) + '</td></tr>';
+        h += '<tr' + a + '><td>' + p[0] + '</td><td>' + fmt(p[1]) + '</td><td>' + fmt(p[2]) + '</td><td>' + fmt(p[3]) + '</td><td>' + fmt(p[4]) + '</td></tr>';
     }
     document.getElementById("printBody").innerHTML = h;
 }
@@ -188,12 +189,13 @@ function buildResultText() {
         if (s) svcsText.push(s.n);
     }
     var totalText = document.getElementById("totalPrice").textContent;
-    if (totalText === "—") return null;
-    return "📦 Заявка на расчёт пакетов:\n" +
+    if (totalText === "—" || lastTotal === null || !q) return null;
+    return "📦 Заявка на расчёт пакетов с печатью:\n" +
            "Тип: " + tName + "\n" +
            "Размер: " + selSize + "\n" +
            "Тираж: " + q + " шт.\n" +
            (svcsText.length ? "Доп. услуги: " + svcsText.join(", ") + "\n" : "") +
+           "Стоимость 1 пакета: " + fmt(lastTotal / q) + "\n" +
            "Итого: " + totalText;
 }
 
@@ -204,10 +206,10 @@ function calc() {
     var badgeEl = document.getElementById("rangeBadge");
     errEl.textContent = "";
     if (!d || !selSize || !d[selSize]) { clearRes(); return; }
-    if (isNaN(q) || q < 50) { errEl.textContent = "Введите число от 50 до 9999"; clearRes(); return; }
+    if (isNaN(q) || q < 200) { errEl.textContent = "Введите число от 200 до 9999"; clearRes(); return; }
     if (q > 9999) { errEl.textContent = "Тираж не должен превышать 9999 шт."; clearRes(); return; }
     var bi = getBagIdx(selType, q);
-    if (bi === null) { errEl.textContent = "Тираж должен быть от 50 шт."; clearRes(); return; }
+    if (bi === null) { errEl.textContent = "Тираж должен быть от 200 шт."; clearRes(); return; }
     var bc = d[selSize][bi];
     if (bc === undefined) { errEl.textContent = "Нет цены"; clearRes(); return; }
     var pg = getPrintGroup(selSize); var pk = getPrintKey(q);
@@ -231,6 +233,7 @@ function calc() {
     document.getElementById("svcPriceUnit").textContent = fmt(us);
     document.getElementById("svcPriceTotal").textContent = fmt(us * q + os);
     document.getElementById("totalPrice").textContent = fmt(tp);
+    lastTotal = tp;
 
     var r = getRanges(selType); var lb = r[bi];
     badgeEl.textContent = lb[0] + "\u2013" + (lb[1] || "\u221E");
@@ -239,6 +242,7 @@ function calc() {
 }
 
 function clearRes() {
+    lastTotal = null;
     ["bagPriceUnit","bagPriceTotal","printPriceUnit","printPriceTotal","svcPriceUnit","svcPriceTotal","bpPriceUnit","bpPriceTotal","totalPrice"].forEach(function(id){
         document.getElementById(id).textContent = "\u2014";
     });
